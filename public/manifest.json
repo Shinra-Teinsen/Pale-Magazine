@@ -1,0 +1,9 @@
+{
+  "name": "PALE — Plateforme de contenu multi-thèmes",
+  "short_name": "PALE",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FAF8F5",
+  "theme_color": "#111111",
+  "description": "Plateforme moderne de contenu multi-thèmes et d'actualités."
+}

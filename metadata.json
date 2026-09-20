@@ -1,0 +1,6 @@
+{
+  "name": "PALE — Plateforme de contenu",
+  "description": "Plateforme moderne de contenu multi-thèmes (Société, Lifestyle, Culture & Divertissement)",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
