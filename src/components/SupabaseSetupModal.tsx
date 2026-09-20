@@ -65,12 +65,12 @@ export const SupabaseSetupModal: React.FC<SupabaseSetupModalProps> = ({
             <ShieldCheck className="w-5 h-5 mt-0.5 shrink-0" />
             <div className="text-xs leading-relaxed">
               <p className="font-bold">
-                {isSupabaseConfigured() ? 'Supabase est configuré et actif !' : 'Stockage local persistant actif'}
+                {isSupabaseConfigured() ? 'Projet Supabase Production Connecté !' : 'Connexion Supabase requise pour la production'}
               </p>
               <p className="mt-0.5 text-neutral-600 dark:text-neutral-400">
                 {isSupabaseConfigured() 
-                  ? 'Vos données se synchronisent directement avec votre base de données Supabase.' 
-                  : 'Vos données et comptes sont conservés en toute sécurité sur votre appareil, ou synchronisables avec vos identifiants Supabase ci-dessous.'}
+                  ? 'Toutes vos données, articles, commentaires et comptes utilisateurs sont synchronisés en direct avec votre base de données Supabase PostgreSQL.' 
+                  : 'Renseignez l’URL et la Clé Anon de votre projet Supabase ci-dessous pour activer le stockage et l’authentification Cloud en production.'}
               </p>
             </div>
           </div>

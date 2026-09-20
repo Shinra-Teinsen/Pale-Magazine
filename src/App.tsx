@@ -53,6 +53,7 @@ export default function App() {
     showToast,
     loginUser,
     registerUser,
+    loginWithGoogle,
     resetPassword,
     updateUserProfile,
     logout,
@@ -309,6 +310,7 @@ export default function App() {
         initialMode={authModalMode}
         onLogin={loginUser}
         onRegister={registerUser}
+        onLoginWithGoogle={loginWithGoogle}
         onForgotPassword={resetPassword}
         showToast={showToast}
       />

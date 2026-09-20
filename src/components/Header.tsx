@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Menu, Search, Bell, Bookmark, User, ShieldCheck, LogIn, Sparkles, Moon, Sun } from 'lucide-react';
+import { Menu, Search, Bell, Bookmark, User, ShieldCheck, LogIn, Sparkles, Moon, Sun, Database } from 'lucide-react';
 import { Profile, NotificationItem, ActiveTab } from '../types';
 import { UserAvatar } from './UserAvatar';
 

@@ -50,7 +50,15 @@ export const Home: React.FC<HomeProps> = ({
       {/* Showit Blog Template Hero Banner */}
       <section className="bg-[#111111] text-white py-12 sm:py-20 px-4 sm:px-6 text-center border-b border-neutral-800 relative">
         <div className="max-w-4xl mx-auto space-y-3 sm:space-y-4">
-          <span className="text-[11px] sm:text-xs uppercase tracking-widest text-emerald-400 font-semibold">{siteSettings.heroBadge}</span>
+          {user && (
+            <div className="inline-flex items-center space-x-2 bg-emerald-950/80 text-emerald-300 text-xs px-3.5 py-1.5 rounded-full font-medium border border-emerald-800 animate-in fade-in slide-in-from-top-2 duration-300">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+              <span>Bon retour parmi nous, {user.full_name} !</span>
+            </div>
+          )}
+          <div>
+            <span className="text-[11px] sm:text-xs uppercase tracking-widest text-emerald-400 font-semibold">{siteSettings.heroBadge}</span>
+          </div>
           <h1 className="font-editorial text-3xl sm:text-5xl md:text-6xl font-black tracking-tight leading-tight">{siteSettings.siteTitle}</h1>
           <p className="text-neutral-400 text-xs sm:text-sm tracking-wide font-medium max-w-xl mx-auto px-2">
             {siteSettings.siteSubtitle}
