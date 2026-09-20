@@ -221,4 +221,33 @@ create policy "Users can delete own comments or admin" on public.comments for de
 create policy "Saved articles own user" on public.saved_articles for all using (auth.uid() = user_id);
 create policy "Article likes own user" on public.article_likes for all using (auth.uid() = user_id);
 create policy "Notifications own user" on public.notifications for all using (auth.uid() = user_id);
+
+-- AUTOMATIC ADMIN RECOGNITION FOR mesyepyewo@gmail.com
+create or replace function public.handle_new_user()
+returns trigger
+language plpgsql
+security definer set search_path = ''
+as $$
+begin
+  insert into public.profiles (id, email, full_name, avatar_url, role)
+  values (
+    new.id,
+    new.email,
+    coalesce(new.raw_user_meta_data ->> 'full_name', split_part(new.email, '@', 1)),
+    new.raw_user_meta_data ->> 'avatar_url',
+    case when new.email = 'mesyepyewo@gmail.com' then 'admin' else 'user' end
+  );
+  return new;
+end;
+$$;
+
+drop trigger if exists on_auth_user_created on auth.users;
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute procedure public.handle_new_user();
+
+-- Instant update if user already exists
+update public.profiles
+set role = 'admin'
+where email = 'mesyepyewo@gmail.com';
 `;
