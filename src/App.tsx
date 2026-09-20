@@ -4,7 +4,6 @@ import { Header } from './components/Header';
 import { Sidebar } from './components/Sidebar';
 import { MobileBottomNav } from './components/MobileBottomNav';
 import { AuthModal } from './components/AuthModal';
-import { SupabaseSetupModal } from './components/SupabaseSetupModal';
 import { ShareModal } from './components/ShareModal';
 import { CommentModal } from './components/CommentModal';
 import { Home } from './pages/Home';
@@ -34,8 +33,6 @@ export default function App() {
     setAuthModalOpen,
     authModalMode,
     setAuthModalMode,
-    supabaseModalOpen,
-    setSupabaseModalOpen,
     shareModalArticle,
     setShareModalArticle,
     commentModalArticle,
@@ -312,12 +309,6 @@ export default function App() {
         onRegister={registerUser}
         onLoginWithGoogle={loginWithGoogle}
         onForgotPassword={resetPassword}
-        showToast={showToast}
-      />
-
-      <SupabaseSetupModal
-        isOpen={supabaseModalOpen}
-        onClose={() => setSupabaseModalOpen(false)}
         showToast={showToast}
       />
 

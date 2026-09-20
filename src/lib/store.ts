@@ -18,7 +18,6 @@ export function useAppStore() {
   // Modals state
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authModalMode, setAuthModalMode] = useState<'login' | 'signup' | 'forgot'>('login');
-  const [supabaseModalOpen, setSupabaseModalOpen] = useState(false);
   const [shareModalArticle, setShareModalArticle] = useState<Article | null>(null);
   const [commentModalArticle, setCommentModalArticle] = useState<Article | null>(null);
 
@@ -329,8 +328,7 @@ export function useAppStore() {
   // ==========================================
   const loginUser = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
     if (!isSupabaseConfigured() || !supabase) {
-      setSupabaseModalOpen(true);
-      return { success: false, error: 'Veuillez configurer vos identifiants Supabase pour vous connecter.' };
+      return { success: false, error: "Le service d'authentification est momentanément indisponible. Veuillez réessayer dans un instant." };
     }
 
     try {
@@ -365,8 +363,7 @@ export function useAppStore() {
 
   const loginWithGoogle = async (): Promise<{ success: boolean; error?: string }> => {
     if (!isSupabaseConfigured() || !supabase) {
-      setSupabaseModalOpen(true);
-      return { success: false, error: 'Veuillez connecter Supabase pour activer la connexion Google OAuth.' };
+      return { success: false, error: "La connexion avec Google est momentanément indisponible. Veuillez utiliser votre e-mail et mot de passe." };
     }
 
     try {
@@ -389,8 +386,7 @@ export function useAppStore() {
     password: string;
   }): Promise<{ success: boolean; error?: string; message?: string }> => {
     if (!isSupabaseConfigured() || !supabase) {
-      setSupabaseModalOpen(true);
-      return { success: false, error: 'Veuillez configurer Supabase pour créer un compte utilisateur en production.' };
+      return { success: false, error: "Le service de création de compte est momentanément indisponible. Veuillez réessayer dans un instant." };
     }
 
     try {
@@ -436,7 +432,7 @@ export function useAppStore() {
 
   const resetPassword = async (email: string): Promise<{ success: boolean; message: string }> => {
     if (!isSupabaseConfigured() || !supabase) {
-      return { success: false, message: 'Supabase n’est pas encore configuré.' };
+      return { success: false, message: "Le service de réinitialisation est momentanément indisponible." };
     }
 
     try {
@@ -953,8 +949,6 @@ export function useAppStore() {
     setAuthModalOpen,
     authModalMode,
     setAuthModalMode,
-    supabaseModalOpen,
-    setSupabaseModalOpen,
     shareModalArticle,
     setShareModalArticle,
     articles,

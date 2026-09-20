@@ -1,7 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
 import { Article, Category, Comment, NotificationItem, Profile, ReportItem, Tag } from '../types';
+import { SITE_SUPABASE_CONFIG } from './supabaseConfig';
 
-// Supabase environment variables
+// Supabase environment variables & central site keys
 const SUPABASE_URL_KEY = 'PALE_SUPABASE_URL';
 const SUPABASE_ANON_KEY = 'PALE_SUPABASE_ANON_KEY';
 export const PRIMARY_ADMIN_EMAIL = 'mesyepyewo@gmail.com';
@@ -9,19 +10,28 @@ export const PRIMARY_ADMIN_EMAIL = 'mesyepyewo@gmail.com';
 export function getSavedSupabaseCredentials() {
   const envUrl = (import.meta as any).env?.VITE_SUPABASE_URL || '';
   const envAnonKey = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY || '';
-  const url = envUrl || localStorage.getItem(SUPABASE_URL_KEY) || '';
-  const anonKey = envAnonKey || localStorage.getItem(SUPABASE_ANON_KEY) || '';
+  
+  // Priorité 1: Configuration globale du site (centralisée pour tous les appareils)
+  // Priorité 2: Variables d'environnement de build/serveur
+  // Priorité 3: Cache local admin (si configuré)
+  const url = SITE_SUPABASE_CONFIG.url || envUrl || (typeof localStorage !== 'undefined' ? localStorage.getItem(SUPABASE_URL_KEY) : '') || '';
+  const anonKey = SITE_SUPABASE_CONFIG.anonKey || envAnonKey || (typeof localStorage !== 'undefined' ? localStorage.getItem(SUPABASE_ANON_KEY) : '') || '';
+  
   return { url: url.trim(), anonKey: anonKey.trim() };
 }
 
 export function saveSupabaseCredentials(url: string, anonKey: string) {
-  localStorage.setItem(SUPABASE_URL_KEY, url.trim());
-  localStorage.setItem(SUPABASE_ANON_KEY, anonKey.trim());
+  if (typeof localStorage !== 'undefined') {
+    localStorage.setItem(SUPABASE_URL_KEY, url.trim());
+    localStorage.setItem(SUPABASE_ANON_KEY, anonKey.trim());
+  }
 }
 
 export function clearSupabaseCredentials() {
-  localStorage.removeItem(SUPABASE_URL_KEY);
-  localStorage.removeItem(SUPABASE_ANON_KEY);
+  if (typeof localStorage !== 'undefined') {
+    localStorage.removeItem(SUPABASE_URL_KEY);
+    localStorage.removeItem(SUPABASE_ANON_KEY);
+  }
 }
 
 const { url: initialUrl, anonKey: initialAnonKey } = getSavedSupabaseCredentials();
