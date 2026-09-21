@@ -183,6 +183,13 @@ create table if not exists public.reports (
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
+-- 13. Table Newsletters
+create table if not exists public.newsletters (
+  id uuid default gen_random_uuid() primary key,
+  email text unique not null,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
 -- ACTIVER ROW LEVEL SECURITY (RLS)
 alter table public.profiles enable row level security;
 alter table public.categories enable row level security;
@@ -196,6 +203,7 @@ alter table public.saved_articles enable row level security;
 alter table public.article_views enable row level security;
 alter table public.notifications enable row level security;
 alter table public.reports enable row level security;
+alter table public.newsletters enable row level security;
 
 -- POLITIQUES RLS IDEMPOTENTES (Suppression préalable pour éviter les erreurs)
 drop policy if exists "Public profiles are viewable by everyone" on public.profiles;
@@ -259,6 +267,13 @@ drop policy if exists "Reports insert" on public.reports;
 drop policy if exists "Reports admin select" on public.reports;
 create policy "Reports insert" on public.reports for insert with check (auth.uid() = user_id);
 create policy "Reports admin select" on public.reports for all using (
+  auth.uid() in (select id from public.profiles where role = 'admin')
+);
+
+drop policy if exists "Anyone can subscribe to newsletter" on public.newsletters;
+drop policy if exists "Admin can view newsletter subscribers" on public.newsletters;
+create policy "Anyone can subscribe to newsletter" on public.newsletters for insert with check (true);
+create policy "Admin can view newsletter subscribers" on public.newsletters for select using (
   auth.uid() in (select id from public.profiles where role = 'admin')
 );
 

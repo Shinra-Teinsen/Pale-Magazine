@@ -6,6 +6,7 @@ import { MobileBottomNav } from './components/MobileBottomNav';
 import { AuthModal } from './components/AuthModal';
 import { ShareModal } from './components/ShareModal';
 import { CommentModal } from './components/CommentModal';
+import { NewsletterSignup } from './components/NewsletterSignup';
 import { Home } from './pages/Home';
 import { ArticlesList } from './pages/ArticlesList';
 import { ArticleDetail } from './pages/ArticleDetail';
@@ -285,18 +286,22 @@ export default function App() {
 
       {/* Footer */}
       <footer className="bg-white dark:bg-neutral-900 border-t border-neutral-200 dark:border-neutral-800 mt-16 sm:mt-20 py-10 sm:py-12 pb-24 md:pb-12 transition-colors">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-6 text-center md:text-left">
-          <div>
-            <span className="font-editorial text-2xl font-black text-neutral-900 dark:text-white">PALE</span>
-            <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-1">Plateforme moderne de contenu multi-thèmes.</p>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <NewsletterSignup showToast={showToast} />
+          
+          <div className="flex flex-col md:flex-row items-center justify-between gap-6 text-center md:text-left pt-6 border-t border-neutral-100 dark:border-neutral-800">
+            <div>
+              <span className="font-editorial text-2xl font-black text-neutral-900 dark:text-white">PALE</span>
+              <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-1">Plateforme moderne de contenu multi-thèmes.</p>
+            </div>
+            <div className="flex flex-wrap items-center justify-center space-x-6 text-xs text-neutral-600 dark:text-neutral-400 font-medium">
+              <button onClick={() => setActiveTab('home')} className="hover:text-black dark:hover:text-white transition-colors">Accueil</button>
+              <button onClick={() => setActiveTab('articles')} className="hover:text-black dark:hover:text-white transition-colors">Articles</button>
+              <button onClick={() => setActiveTab('about')} className="hover:text-black dark:hover:text-white transition-colors">À propos</button>
+              <button onClick={() => setActiveTab('contact')} className="hover:text-black dark:hover:text-white transition-colors">Contact</button>
+            </div>
+            <p className="text-xs text-neutral-400">© 2026 PALE Magazine. Tous droits réservés.</p>
           </div>
-          <div className="flex flex-wrap items-center justify-center space-x-6 text-xs text-neutral-600 dark:text-neutral-400 font-medium">
-            <button onClick={() => setActiveTab('home')} className="hover:text-black dark:hover:text-white transition-colors">Accueil</button>
-            <button onClick={() => setActiveTab('articles')} className="hover:text-black dark:hover:text-white transition-colors">Articles</button>
-            <button onClick={() => setActiveTab('about')} className="hover:text-black dark:hover:text-white transition-colors">À propos</button>
-            <button onClick={() => setActiveTab('contact')} className="hover:text-black dark:hover:text-white transition-colors">Contact</button>
-          </div>
-          <p className="text-xs text-neutral-400">© 2026 PALE Magazine. Tous droits réservés.</p>
         </div>
       </footer>
 
