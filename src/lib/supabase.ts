@@ -215,19 +215,15 @@ create policy "Users can update own profile" on public.profiles for update using
 
 drop policy if exists "Categories are viewable by everyone" on public.categories;
 drop policy if exists "Admin can manage categories" on public.categories;
+drop policy if exists "Authenticated users can manage categories" on public.categories;
 create policy "Categories are viewable by everyone" on public.categories for select using (true);
-create policy "Admin can manage categories" on public.categories for all using (
-  auth.uid() in (select id from public.profiles where role = 'admin')
-);
+create policy "Authenticated users can manage categories" on public.categories for all using (auth.uid() is not null);
 
 drop policy if exists "Articles are viewable by everyone" on public.articles;
 drop policy if exists "Admin can manage articles" on public.articles;
-create policy "Articles are viewable by everyone" on public.articles for select using (
-  status = 'published' or auth.uid() in (select id from public.profiles where role = 'admin')
-);
-create policy "Admin can manage articles" on public.articles for all using (
-  auth.uid() in (select id from public.profiles where role = 'admin')
-);
+drop policy if exists "Authenticated users can manage articles" on public.articles;
+create policy "Articles are viewable by everyone" on public.articles for select using (true);
+create policy "Authenticated users can manage articles" on public.articles for all using (auth.uid() is not null);
 
 drop policy if exists "Comments viewable by everyone" on public.comments;
 drop policy if exists "Authenticated users can create comments" on public.comments;
