@@ -399,11 +399,22 @@ export function useAppStore() {
       })
       .subscribe();
 
+    // Auto-refresh when app becomes visible or focused on mobile devices
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        fetchSupabaseData();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', fetchSupabaseData);
+
     return () => {
       subscription.unsubscribe();
       supabase.removeChannel(articlesChannel);
       supabase.removeChannel(categoriesChannel);
       supabase.removeChannel(commentsChannel);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', fetchSupabaseData);
     };
   }, [fetchUserProfile, loadUserSupabaseData, fetchSupabaseData]);
 
