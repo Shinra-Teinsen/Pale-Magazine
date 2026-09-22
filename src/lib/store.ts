@@ -3,13 +3,11 @@ import { Article, Category, Comment, NotificationItem, Profile, RegisteredAccoun
 import { supabase, isSupabaseConfigured, PRIMARY_ADMIN_EMAIL } from './supabase';
 import { INITIAL_ARTICLES, INITIAL_CATEGORIES, INITIAL_COMMENTS } from '../data/mockArticles';
 
-// Local storage persistence keys for resilient offline/preview/production fallback
+// Local storage persistence keys for offline/preview fallback
 const STORAGE_USER_KEY = 'PALE_AUTH_USER';
 const STORAGE_ACCOUNTS_KEY = 'PALE_ACCOUNTS';
-const STORAGE_CUSTOM_ARTICLES_KEY = 'PALE_CUSTOM_ARTICLES';
 const STORAGE_SAVED_KEY = 'PALE_SAVED_ARTICLES';
 const STORAGE_LIKES_KEY = 'PALE_LIKED_ARTICLES';
-const STORAGE_COMMENTS_KEY = 'PALE_CUSTOM_COMMENTS';
 const STORAGE_SETTINGS_KEY = 'PALE_SITE_SETTINGS';
 
 // Default pre-seeded admin account
@@ -31,7 +29,7 @@ export function useAppStore() {
   const [selectedArticleId, setSelectedArticleId] = useState<string | null>(null);
   const [selectedCategorySlug, setSelectedCategorySlug] = useState<string | null>(null);
   
-  // Registered accounts (persisted locally and synced with Supabase)
+  // Registered accounts
   const [accounts, setAccounts] = useState<RegisteredAccount[]>(() => {
     try {
       const stored = localStorage.getItem(STORAGE_ACCOUNTS_KEY);
@@ -48,7 +46,7 @@ export function useAppStore() {
     return DEFAULT_ACCOUNTS;
   });
 
-  // Current active user session (restored from storage or Supabase Auth)
+  // Current active user session
   const [user, setUser] = useState<Profile | null>(() => {
     try {
       const stored = localStorage.getItem(STORAGE_USER_KEY);
@@ -73,35 +71,11 @@ export function useAppStore() {
   const [shareModalArticle, setShareModalArticle] = useState<Article | null>(null);
   const [commentModalArticle, setCommentModalArticle] = useState<Article | null>(null);
 
-  // Core data states (with initial seed + local custom articles + Supabase sync)
-  const [articles, setArticles] = useState<Article[]>(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_CUSTOM_ARTICLES_KEY);
-      if (stored) {
-        const custom = JSON.parse(stored);
-        if (Array.isArray(custom) && custom.length > 0) {
-          return [...custom, ...INITIAL_ARTICLES];
-        }
-      }
-    } catch {}
-    return INITIAL_ARTICLES;
-  });
-
+  // Core data states (synchronized via Supabase for all users globally)
+  const [articles, setArticles] = useState<Article[]>(INITIAL_ARTICLES);
   const [categories, setCategories] = useState<Category[]>(INITIAL_CATEGORIES);
-
-  const [comments, setComments] = useState<Comment[]>(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_COMMENTS_KEY);
-      if (stored) {
-        const custom = JSON.parse(stored);
-        if (Array.isArray(custom) && custom.length > 0) {
-          return [...custom, ...INITIAL_COMMENTS];
-        }
-      }
-    } catch {}
-    return INITIAL_COMMENTS;
-  });
-
+  const [comments, setComments] = useState<Comment[]>(INITIAL_COMMENTS);
+  
   const [notifications, setNotifications] = useState<NotificationItem[]>([
     {
       id: 'notif-welcome',
@@ -237,7 +211,7 @@ export function useAppStore() {
     }
   }, []);
 
-  // Fetch all main data from Supabase if connected
+  // Fetch all main data from Supabase with automatic global seeding if empty
   const fetchSupabaseData = useCallback(async () => {
     if (!supabase) {
       setAuthLoading(false);
@@ -245,14 +219,24 @@ export function useAppStore() {
     }
 
     try {
+      // 1. Fetch Categories
       const { data: catData, error: catErr } = await supabase
         .from('categories')
         .select('*')
         .order('name');
+      
       if (!catErr && catData && catData.length > 0) {
         setCategories(catData);
+      } else if (!catErr && (!catData || catData.length === 0)) {
+        // Seed initial categories globally so all users see them
+        for (const cat of INITIAL_CATEGORIES) {
+          await supabase.from('categories').insert({ id: cat.id, name: cat.name, slug: cat.slug }).select();
+        }
+        const { data: seededCat } = await supabase.from('categories').select('*').order('name');
+        if (seededCat && seededCat.length > 0) setCategories(seededCat);
       }
 
+      // 2. Fetch Articles
       const { data: artData, error: artErr } = await supabase
         .from('articles')
         .select(`
@@ -264,8 +248,37 @@ export function useAppStore() {
 
       if (!artErr && artData && artData.length > 0) {
         setArticles(artData);
+      } else if (!artErr && (!artData || artData.length === 0)) {
+        // Seed initial articles globally in Supabase database for all users
+        for (const art of INITIAL_ARTICLES) {
+          await supabase.from('articles').insert({
+            id: art.id,
+            title: art.title,
+            slug: art.slug,
+            content: art.content,
+            excerpt: art.excerpt,
+            cover_image: art.cover_image,
+            category_id: art.category_id,
+            author_id: PRIMARY_ADMIN_EMAIL,
+            status: art.status || 'published',
+            published_at: art.published_at || art.created_at,
+            is_featured: art.is_featured || false,
+            views_count: art.views_count || 0,
+            likes_count: art.likes_count || 0,
+            comments_count: art.comments_count || 0,
+            shares_count: art.shares_count || 0
+          });
+        }
+        const { data: seededArt } = await supabase
+          .from('articles')
+          .select(`*, category:categories(*), author:profiles(*)`)
+          .order('created_at', { ascending: false });
+        if (seededArt && seededArt.length > 0) {
+          setArticles(seededArt);
+        }
       }
 
+      // 3. Fetch Comments
       const { data: comData, error: comErr } = await supabase
         .from('comments')
         .select(`
@@ -278,6 +291,7 @@ export function useAppStore() {
         setComments(comData);
       }
 
+      // 4. Fetch Notifications
       const { data: notifData } = await supabase
         .from('notifications')
         .select('*')
@@ -287,6 +301,7 @@ export function useAppStore() {
         setNotifications(notifData);
       }
 
+      // 5. Fetch Reports
       const { data: repData } = await supabase
         .from('reports')
         .select(`
@@ -300,6 +315,7 @@ export function useAppStore() {
         setReports(repData);
       }
 
+      // 6. Fetch Accounts
       const { data: profilesData } = await supabase
         .from('profiles')
         .select('*')
@@ -315,7 +331,7 @@ export function useAppStore() {
     }
   }, []);
 
-  // Listen to Supabase Auth State Changes if Supabase is active
+  // Listen to Supabase Auth and Realtime sync channels across all devices & users
   useEffect(() => {
     if (!supabase) {
       setAuthLoading(false);
@@ -361,8 +377,33 @@ export function useAppStore() {
 
     fetchSupabaseData();
 
+    // Supabase Realtime Channels for live multi-user synchronization without local storage
+    const articlesChannel = supabase
+      .channel('public:articles')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'articles' }, () => {
+        fetchSupabaseData();
+      })
+      .subscribe();
+
+    const categoriesChannel = supabase
+      .channel('public:categories')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'categories' }, () => {
+        fetchSupabaseData();
+      })
+      .subscribe();
+
+    const commentsChannel = supabase
+      .channel('public:comments')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'comments' }, () => {
+        fetchSupabaseData();
+      })
+      .subscribe();
+
     return () => {
       subscription.unsubscribe();
+      supabase.removeChannel(articlesChannel);
+      supabase.removeChannel(categoriesChannel);
+      supabase.removeChannel(commentsChannel);
     };
   }, [fetchUserProfile, loadUserSupabaseData, fetchSupabaseData]);
 
@@ -379,7 +420,6 @@ export function useAppStore() {
     setDarkMode(prev => !prev);
   };
 
-  // Helper to format Supabase auth errors into friendly French messages
   const formatAuthError = (errMessage: string): string => {
     const lower = (errMessage || '').toLowerCase();
     if (
@@ -407,13 +447,12 @@ export function useAppStore() {
   };
 
   // ==========================================
-  // RESILIENT & HYBRID AUTHENTICATION
+  // AUTHENTICATION (GOOGLE & EMAIL)
   // ==========================================
   const loginUser = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
     const normalizedEmail = email.trim().toLowerCase();
     const isAdmin = normalizedEmail === PRIMARY_ADMIN_EMAIL.toLowerCase();
 
-    // 1. Try Supabase Auth if configured
     if (isSupabaseConfigured() && supabase) {
       try {
         const { data, error } = await supabase.auth.signInWithPassword({
@@ -437,10 +476,8 @@ export function useAppStore() {
           return { success: true };
         }
 
-        // If error is invalid credentials, check if admin can log in locally or return message
         if (error) {
           if (isAdmin) {
-            // Admin fallback login
             const adminProfile: Profile = {
               id: 'admin-mesyepyewo',
               email: PRIMARY_ADMIN_EMAIL,
@@ -460,11 +497,10 @@ export function useAppStore() {
           return { success: false, error: formatAuthError(error.message) };
         }
       } catch (err: any) {
-        console.warn('Supabase auth network error, fallback to local accounts:', err);
+        console.warn('Supabase auth network error, fallback:', err);
       }
     }
 
-    // 2. Resilient local authentication
     if (isAdmin) {
       const adminProfile: Profile = {
         id: 'admin-mesyepyewo',
@@ -483,7 +519,6 @@ export function useAppStore() {
       return { success: true };
     }
 
-    // Check registered accounts list
     const found = accounts.find(a => a.email.toLowerCase() === normalizedEmail);
     if (found) {
       if (!found.password || found.password === password) {
@@ -504,7 +539,7 @@ export function useAppStore() {
   };
 
   const loginWithGoogle = async (): Promise<{ success: boolean; error?: string }> => {
-    // 1. Try Supabase OAuth if configured
+    // Google Authentication via Supabase Auth Google Provider
     if (isSupabaseConfigured() && supabase) {
       try {
         const { error } = await supabase.auth.signInWithOAuth({
@@ -514,18 +549,21 @@ export function useAppStore() {
           }
         });
         if (!error) return { success: true };
-      } catch (err) {
-        console.warn('Google OAuth Supabase fallback:', err);
+        if (error) {
+          return { success: false, error: formatAuthError(error.message) };
+        }
+      } catch (err: any) {
+        console.warn('Google OAuth error:', err);
       }
     }
 
-    // 2. Resilient Google Login
+    // Fallback Google Auth profile
     const googleProfile: Profile = {
       id: 'google-user-' + Date.now(),
       email: 'lecteur.google@gmail.com',
       full_name: 'Lecteur Google',
       avatar_url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=GoogleUser',
-      bio: 'Lecteur passionné sur PALE',
+      bio: 'Lecteur authentifié via Google sur PALE',
       role: 'user',
       push_notifications_enabled: true,
       created_at: new Date().toISOString()
@@ -546,7 +584,6 @@ export function useAppStore() {
     const normalizedEmail = data.email.trim().toLowerCase();
     const isAdmin = normalizedEmail === PRIMARY_ADMIN_EMAIL.toLowerCase();
 
-    // 1. Try Supabase signUp if configured
     if (isSupabaseConfigured() && supabase) {
       try {
         const { data: authData, error } = await supabase.auth.signUp({
@@ -591,7 +628,6 @@ export function useAppStore() {
       }
     }
 
-    // 2. Resilient local registration
     const existing = accounts.find(a => a.email.toLowerCase() === normalizedEmail);
     if (existing) {
       return { success: false, error: "Un compte est déjà associé à cette adresse e-mail. Veuillez vous connecter." };
@@ -647,7 +683,6 @@ export function useAppStore() {
     setUser(finalProfile);
     try { localStorage.setItem(STORAGE_USER_KEY, JSON.stringify(finalProfile)); } catch {}
 
-    // Update in local accounts
     setAccounts(prev => {
       const next = prev.map(a => a.id === finalProfile.id ? { ...a, ...finalProfile } : a);
       try { localStorage.setItem(STORAGE_ACCOUNTS_KEY, JSON.stringify(next)); } catch {}
@@ -803,6 +838,28 @@ export function useAppStore() {
       return;
     }
 
+    if (supabase) {
+      try {
+        const { data, error } = await supabase.from('comments').insert({
+          article_id: articleId,
+          user_id: user.id,
+          parent_id: parentId || null,
+          content: content.trim(),
+          likes_count: 0
+        }).select(`*, user:profiles(*)`).single();
+
+        if (!error && data) {
+          setComments(prev => [data, ...prev]);
+          setArticles(prev => prev.map(art => art.id === articleId ? { ...art, comments_count: (art.comments_count || 0) + 1 } : art));
+          showToast('Commentaire publié !');
+          return;
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    // Fallback local
     const newCom: Comment = {
       id: 'com_' + Date.now(),
       article_id: articleId,
@@ -813,28 +870,9 @@ export function useAppStore() {
       created_at: new Date().toISOString(),
       user: user
     };
-
-    setComments(prev => {
-      const next = [newCom, ...prev];
-      try { localStorage.setItem(STORAGE_COMMENTS_KEY, JSON.stringify(next.filter(c => c.id.startsWith('com_')))); } catch {}
-      return next;
-    });
+    setComments(prev => [newCom, ...prev]);
     setArticles(prev => prev.map(art => art.id === articleId ? { ...art, comments_count: (art.comments_count || 0) + 1 } : art));
     showToast('Commentaire publié !');
-
-    if (supabase) {
-      try {
-        await supabase.from('comments').insert({
-          article_id: articleId,
-          user_id: user.id,
-          parent_id: parentId || null,
-          content: content.trim(),
-          likes_count: 0
-        });
-      } catch (err) {
-        console.error(err);
-      }
-    }
   };
 
   const deleteComment = async (commentId: string) => {
@@ -843,11 +881,7 @@ export function useAppStore() {
     if (!target) return;
     if (target.user_id !== user.id && user.role !== 'admin') return;
 
-    setComments(prev => {
-      const next = prev.filter(c => c.id !== commentId && c.parent_id !== commentId);
-      try { localStorage.setItem(STORAGE_COMMENTS_KEY, JSON.stringify(next.filter(c => c.id.startsWith('com_')))); } catch {}
-      return next;
-    });
+    setComments(prev => prev.filter(c => c.id !== commentId && c.parent_id !== commentId));
     setArticles(prev => prev.map(art => art.id === target.article_id ? { ...art, comments_count: Math.max(0, (art.comments_count || 1) - 1) } : art));
     showToast('Commentaire supprimé.');
 
@@ -895,7 +929,7 @@ export function useAppStore() {
   };
 
   // ==========================================
-  // ADMINISTRATION FUNCTIONS
+  // ADMINISTRATION FUNCTIONS (GLOBAL SUPABASE SYNC)
   // ==========================================
   const publishArticleAdmin = async (articleData: Partial<Article>) => {
     if (!user || user.role !== 'admin') {
@@ -907,6 +941,54 @@ export function useAppStore() {
     const slug = (title).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') + '-' + Date.now();
     const defaultCatId = categories[0]?.id;
 
+    if (supabase) {
+      try {
+        const { data, error } = await supabase
+          .from('articles')
+          .insert({
+            title,
+            slug,
+            content: articleData.content || '',
+            excerpt: articleData.excerpt || '',
+            cover_image: articleData.cover_image || 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?auto=format&fit=crop&q=80&w=1200',
+            category_id: articleData.category_id || defaultCatId,
+            author_id: user.id,
+            status: articleData.status || 'published',
+            published_at: articleData.status === 'published' ? new Date().toISOString() : null,
+            is_featured: articleData.is_featured || false,
+            quote_attribution: articleData.quote_attribution,
+            views_count: 0,
+            likes_count: 0,
+            comments_count: 0,
+            shares_count: 0
+          })
+          .select(`*, category:categories(*), author:profiles(*)`)
+          .single();
+
+        if (error) {
+          showToast(`Erreur Supabase : ${error.message}`);
+          return;
+        }
+
+        if (data) {
+          setArticles(prev => [data, ...prev]);
+          await supabase.from('notifications').insert({
+            user_id: 'all',
+            title: 'Nouvelle publication 📰',
+            message: `"${data.title}" vient d'être publié sur PALE.`,
+            type: 'new_article',
+            related_id: data.id,
+            is_read: false
+          });
+          showToast('Article publié et synchronisé en direct pour tous les utilisateurs !');
+          return;
+        }
+      } catch (err: any) {
+        console.error('Publish error:', err);
+      }
+    }
+
+    // Fallback local if Supabase not reachable
     const newArticle: Article = {
       id: 'art_' + Date.now(),
       title,
@@ -929,75 +1011,15 @@ export function useAppStore() {
       author: user,
       category: categories.find(c => c.id === (articleData.category_id || defaultCatId))
     };
-
-    setArticles(prev => {
-      const next = [newArticle, ...prev];
-      try { localStorage.setItem(STORAGE_CUSTOM_ARTICLES_KEY, JSON.stringify(next.filter(a => a.id.startsWith('art_')))); } catch {}
-      return next;
-    });
-
-    const notif: NotificationItem = {
-      id: 'notif_' + Date.now(),
-      user_id: 'all',
-      title: 'Nouvelle publication 📰',
-      message: `"${newArticle.title}" vient d'être publié sur PALE.`,
-      type: 'new_article',
-      related_id: newArticle.id,
-      is_read: false,
-      created_at: new Date().toISOString()
-    };
-    setNotifications(prev => [notif, ...prev]);
-    showToast('Article publié avec succès !');
-
-    if (supabase) {
-      try {
-        const { data } = await supabase
-          .from('articles')
-          .insert({
-            title: newArticle.title,
-            slug: newArticle.slug,
-            content: newArticle.content,
-            excerpt: newArticle.excerpt,
-            cover_image: newArticle.cover_image,
-            category_id: newArticle.category_id,
-            author_id: user.id,
-            status: newArticle.status,
-            published_at: newArticle.published_at,
-            is_featured: newArticle.is_featured,
-            views_count: 0,
-            likes_count: 0,
-            comments_count: 0,
-            shares_count: 0
-          })
-          .select(`*, category:categories(*), author:profiles(*)`)
-          .single();
-
-        if (data) {
-          setArticles(prev => prev.map(a => a.id === newArticle.id ? data : a));
-          await supabase.from('notifications').insert({
-            user_id: 'all',
-            title: notif.title,
-            message: notif.message,
-            type: notif.type,
-            related_id: data.id,
-            is_read: false
-          });
-        }
-      } catch (err) {
-        console.error(err);
-      }
-    }
+    setArticles(prev => [newArticle, ...prev]);
+    showToast('Article publié !');
   };
 
   const updateArticleAdmin = async (articleId: string, articleData: Partial<Article>) => {
     if (!user || user.role !== 'admin') return;
 
-    setArticles(prev => {
-      const next = prev.map(art => art.id === articleId ? { ...art, ...articleData, updated_at: new Date().toISOString() } : art);
-      try { localStorage.setItem(STORAGE_CUSTOM_ARTICLES_KEY, JSON.stringify(next.filter(a => a.id.startsWith('art_')))); } catch {}
-      return next;
-    });
-    showToast('Article mis à jour avec succès.');
+    setArticles(prev => prev.map(art => art.id === articleId ? { ...art, ...articleData, updated_at: new Date().toISOString() } : art));
+    showToast('Article mis à jour et synchronisé.');
 
     if (supabase) {
       try {
@@ -1017,12 +1039,8 @@ export function useAppStore() {
   const deleteArticleAdmin = async (articleId: string) => {
     if (!user || user.role !== 'admin') return;
 
-    setArticles(prev => {
-      const next = prev.filter(art => art.id !== articleId);
-      try { localStorage.setItem(STORAGE_CUSTOM_ARTICLES_KEY, JSON.stringify(next.filter(a => a.id.startsWith('art_')))); } catch {}
-      return next;
-    });
-    showToast('Article supprimé.');
+    setArticles(prev => prev.filter(art => art.id !== articleId));
+    showToast('Article supprimé pour tous les utilisateurs.');
 
     if (supabase) {
       try {
@@ -1098,7 +1116,7 @@ export function useAppStore() {
     };
 
     setNotifications(prev => [notif, ...prev]);
-    showToast('Annonce diffusée à tous les lecteurs !');
+    showToast('Annonce diffusée en direct à tous les lecteurs !');
 
     if (supabase) {
       try {
@@ -1179,20 +1197,15 @@ export function useAppStore() {
   const resetAllData = () => {
     if (user?.role !== 'admin') return;
     try {
-      localStorage.removeItem(STORAGE_CUSTOM_ARTICLES_KEY);
-      localStorage.removeItem(STORAGE_COMMENTS_KEY);
       localStorage.removeItem(STORAGE_SAVED_KEY);
       localStorage.removeItem(STORAGE_LIKES_KEY);
     } catch {}
-    setArticles(INITIAL_ARTICLES);
-    setComments(INITIAL_COMMENTS);
-    setCategories(INITIAL_CATEGORIES);
     setSavedArticleIds([]);
     setLikedArticleIds([]);
     if (supabase) {
       fetchSupabaseData();
     }
-    showToast('Données réinitialisées à l’état initial.');
+    showToast('Données synchronisées avec Supabase.');
   };
 
   return {
